@@ -1,0 +1,6 @@
+{
+  "name": "WealthSense AI",
+  "description": "WealthSense AI is a comprehensive financial intelligence platform featuring real-time tracking, AI investment guidance, goal planning, money leak detection, and interactive AI financial chat with multilingual support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

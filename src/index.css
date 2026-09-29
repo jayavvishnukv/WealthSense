@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-brand-bg: #0b1326;
+  --color-brand-sidebar: #060e20;
+  --color-brand-card: #171f33;
+  --color-brand-card-light: #131b2e;
+  --color-brand-border: #424754;
+  --color-brand-text: #dae2fd;
+  --color-brand-muted: #c2c6d6;
+  --color-brand-muted-dark: #8c909f;
+  --color-brand-primary: #adc6ff;
+  --color-brand-green: #4edea3;
+  --color-brand-rose: #ffb2b7;
+}
+
+body {
+  background-color: #0b1326;
+  color: #dae2fd;
+  font-family: var(--font-sans);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #060e20;
+}
+::-webkit-scrollbar-thumb {
+  background: #424754;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #adc6ff;
+}
+
+/* Print/PDF Export classes if needed */
+.report-card {
+  break-inside: avoid;
+}

@@ -4,7 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 const projectId = process.env.VITE_FIREBASE_PROJECT_ID?.trim();
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
 const privateKey = process.env.FIREBASE_PRIVATE_KEY
-  ?.replace(/\\n/g, '\n')
+  ?.replace(/^"|"$/g, '')
   .trim();
 
 const missingVariables = [
@@ -20,12 +20,16 @@ if (missingVariables.length > 0) {
   );
 }
 
+if (!privateKey!.includes('BEGIN PRIVATE KEY')) {
+  throw new Error('FIREBASE_PRIVATE_KEY is missing or malformed');
+}
+
 const app = getApps().length === 0
   ? initializeApp({
       credential: cert({
         projectId: projectId!,
         clientEmail: clientEmail!,
-        privateKey: privateKey!,
+        privateKey: privateKey!.replace(/\\n/g, '\n'),
       }),
     })
   : getApp();

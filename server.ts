@@ -41,6 +41,11 @@ const PORT = Number(process.env.PORT) || 3000;
 export default app;
 
 const configuredCorsOrigins = [
+  'https://wealth-sense-amber.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
   process.env.APP_URL,
   ...(process.env.CORS_ALLOWED_ORIGINS || '').split(','),
 ]

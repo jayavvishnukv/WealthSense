@@ -40,6 +40,40 @@ const PORT = Number(process.env.PORT) || 3000;
 
 export default app;
 
+const configuredCorsOrigins = [
+  process.env.APP_URL,
+  ...(process.env.CORS_ALLOWED_ORIGINS || '').split(','),
+]
+  .map((value) => value?.trim())
+  .filter((value): value is string => Boolean(value))
+  .map((value) => {
+    try {
+      return new URL(value).origin;
+    } catch {
+      return null;
+    }
+  })
+  .filter((origin): origin is string => Boolean(origin));
+const allowedCorsOrigins = new Set(configuredCorsOrigins);
+
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  const originIsAllowed = Boolean(origin && allowedCorsOrigins.has(origin));
+
+  if (originIsAllowed && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(origin && !originIsAllowed ? 403 : 204);
+  }
+
+  next();
+});
+
 app.use(express.json());
 
 // Lazy-initialization helper for Gemini to fail-fast and avoid server crash on launch if key missing

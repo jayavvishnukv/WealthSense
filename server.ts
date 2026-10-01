@@ -445,14 +445,17 @@ app.post('/api/goals/:id/ai-calculate', requireAuth, async (req: AuthRequest, re
     const firebaseUser = req.user;
     const dbUser = await syncUserSession(firebaseUser.uid, firebaseUser.email || '');
     const { monthlySavings, lang } = req.body;
-    
+
     const goalsList = await getGoals(dbUser.id);
     const targetGoal = goalsList.find(g => g.id === parseInt(req.params.id));
     if (!targetGoal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
 
-    const remaining = Math.max(0, targetGoal.targetAmount - targetGoal.savedAmount);
+    // Null-safe values
+    const savedAmount = targetGoal.savedAmount ?? 0;
+
+    const remaining = Math.max(0, targetGoal.targetAmount - savedAmount);
     const monthly = Number(monthlySavings) || 5000;
     const calculatedMonths = Math.max(1, Math.ceil(remaining / monthly));
     const isTa = lang === 'ta';
@@ -462,7 +465,7 @@ The user wants to plan for a goal.
 Goal details:
 - Name: "${targetGoal.name}"
 - Target Amount: ${targetGoal.targetAmount}
-- Current Saved: ${targetGoal.savedAmount}
+- Current Saved: ${savedAmount}
 - User proposes saving: ${monthly} per month.
 
 Calculate:
@@ -504,7 +507,7 @@ Return a JSON object exactly matching this schema:
           : `You are only ${calculatedMonths} months away from reaching your goal "${targetGoal.name}". Consistent monthly discipline turns dreams into reality!`
       };
     }
-    
+
     // Save calculation to Goal record
     const updated = await updateGoal(dbUser.id, targetGoal.id, {
       aiMonthsNeeded: results.monthsNeeded,
@@ -532,17 +535,22 @@ app.post('/api/emergency-fund/ai-guidance', requireAuth, async (req: AuthRequest
       return res.status(404).json({ error: 'Emergency fund config not found' });
     }
 
-    const target = fund.monthlyExpenses * fund.multiplier;
-    const needed = Math.max(0, target - (fund.currentAmount || 0));
-    const completionMonths = fund.monthlyAddition && fund.monthlyAddition > 0 ? (needed / fund.monthlyAddition) : 0;
+    // Null-safe values
+    const multiplier = fund.multiplier ?? 6;
+    const monthlyAddition = fund.monthlyAddition ?? 0;
+    const currentAmount = fund.currentAmount ?? 0;
+
+    const target = fund.monthlyExpenses * multiplier;
+    const needed = Math.max(0, target - currentAmount);
+    const completionMonths = monthlyAddition > 0 ? needed / monthlyAddition : 0;
 
     const prompt = `You are WealthSense AI. The user is planning their Emergency Fund.
 Fund Configuration:
 - Average Monthly Expenses: ₹${fund.monthlyExpenses}
 - Job Type: ${fund.jobType} (Salaried multiplier = 6, Freelancer multiplier = 9)
 - Target Fund Needed: ₹${target}
-- Current Saved: ₹${fund.currentAmount}
-- Monthly Addition: ₹${fund.monthlyAddition}
+- Current Saved: ₹${currentAmount}
+- Monthly Addition: ₹${monthlyAddition}
 - Estimated Months to complete: ${completionMonths.toFixed(1)} months.
 
 Provide professional, tailored emergency fund planning advice in ${isTa ? 'Tamil language' : 'English language'}. 
@@ -574,8 +582,8 @@ Return a JSON object:
     } catch (aiErr: any) {
       console.warn('Emergency fund AI transient error, using smart fallback guidance:', aiErr.message);
       guidanceText = isTa
-        ? `உங்கள் அவசரகால நிதி இலக்கு ₹${target.toLocaleString()} ஆகும் (${fund.multiplier} மாத செலவு). ${fund.jobType === 'Salaried' ? 'மாத சம்பளதாரர்களுக்கு 6 மாத செலவு பாதுகாப்பு பரிந்துரைக்கப்படுகிறது.' : 'சுயதொழில் / ஃப்ரீலான்ஸர்களுக்கு வருமான ஏற்றத்தாழ்வு இருப்பதால் 9 மாத பாதுகாப்பு நிதி அத்தியாவசியம்.'} உங்கள் தற்போதைய ₹${fund.monthlyAddition.toLocaleString()} மாதாந்திர சேமிப்பு மூலம் இன்னும் ${completionMonths.toFixed(1)} மாதங்களில் இந்த இலக்கை அடையலாம். அத்தியாவசியமற்ற செலவுகளைக் குறைத்து, இந்த நிதியை லிக்விட் மியூச்சுவல் ஃபண்ட் அல்லது Sweep-in FD-யில் பாதுகாப்பாக சேமிக்கவும்.`
-        : `Your targeted Emergency Fund is ₹${target.toLocaleString()} (${fund.multiplier} months of ₹${fund.monthlyExpenses.toLocaleString()} monthly expenses). As a ${fund.jobType}, maintaining this liquidity buffer protects your family against sudden income interruptions or medical emergencies. With your current monthly allocation of ₹${fund.monthlyAddition.toLocaleString()}, you will reach your target in approximately ${completionMonths.toFixed(1)} months. Recommended vehicles: Sweep-in Bank Fixed Deposits or Ultra-Short Term / Liquid Mutual Funds for same-day liquidity.`;
+        ? `உங்கள் அவசரகால நிதி இலக்கு ₹${target.toLocaleString()} ஆகும் (${multiplier} மாத செலவு). ${fund.jobType === 'Salaried' ? 'மாத சம்பளதாரர்களுக்கு 6 மாத செலவு பாதுகாப்பு பரிந்துரைக்கப்படுகிறது.' : 'சுயதொழில் / ஃப்ரீலான்ஸர்களுக்கு வருமான ஏற்றத்தாழ்வு இருப்பதால் 9 மாத பாதுகாப்பு நிதி அத்தியாவசியம்.'} உங்கள் தற்போதைய ₹${monthlyAddition.toLocaleString()} மாதாந்திர சேமிப்பு மூலம் இன்னும் ${completionMonths.toFixed(1)} மாதங்களில் இந்த இலக்கை அடையலாம். அத்தியாவசியமற்ற செலவுகளைக் குறைத்து, இந்த நிதியை லிக்விட் மியூச்சுவல் ஃபண்ட் அல்லது Sweep-in FD-யில் பாதுகாப்பாக சேமிக்கவும்.`
+        : `Your targeted Emergency Fund is ₹${target.toLocaleString()} (${multiplier} months of ₹${fund.monthlyExpenses.toLocaleString()} monthly expenses). As a ${fund.jobType}, maintaining this liquidity buffer protects your family against sudden income interruptions or medical emergencies. With your current monthly allocation of ₹${monthlyAddition.toLocaleString()}, you will reach your target in approximately ${completionMonths.toFixed(1)} months. Recommended vehicles: Sweep-in Bank Fixed Deposits or Ultra-Short Term / Liquid Mutual Funds for same-day liquidity.`;
     }
 
     res.json({ guidance: guidanceText });
@@ -857,7 +865,7 @@ Return a JSON object matching this schema:
         });
       }
     }
-    
+
     // Save these leaks to database
     const savedLeaks = [];
     for (const leak of parsedLeaks) {
@@ -981,7 +989,7 @@ Return a JSON object exactly matching this schema:
           {
             title: isTa ? "சேமிப்பு விகித செயல்திறன்" : "Savings Rate Performance",
             type: savingsRate >= 20 ? "success" : savingsRate >= 10 ? "info" : "warning",
-            text: isTa 
+            text: isTa
               ? `இந்த மாதத்தில் உங்கள் நிகர சேமிப்பு விகிதம் ${savingsRate}% ஆக உள்ளது. குறைந்தபட்சம் 20% சேமிப்பது உகந்தது.`
               : `Your savings rate for this month is ${savingsRate}%. Maintaining at least 20% provides strong financial buffer.`,
             impact: `Net Savings: ₹${netSavings.toLocaleString()}`
@@ -1011,7 +1019,7 @@ Return a JSON object exactly matching this schema:
           : `Total expenditure of ₹${monthlyExpenses.toLocaleString()} recorded against ₹${monthlyIncome.toLocaleString()} income.`
       };
     }
-    
+
     // Save to analysis history
     await addAIAnalysis(dbUser.id, month, JSON.stringify(results), results.healthScore);
 
@@ -1045,7 +1053,7 @@ app.post('/api/chat', requireAuth, async (req: AuthRequest, res) => {
 - Total Income: ₹${totalIncome}
 - Total Expenses: ₹${totalExpenses}
 - Net Monthly Savings: ₹${netSavings}
-- Goals: ${goalsList.map(g => `${g.name} (Target: ₹${g.targetAmount}, Saved: ₹${g.savedAmount})`).join(', ') || 'No goals configured yet'}
+- Goals: ${goalsList.map(g => `${g.name} (Target: ₹${g.targetAmount}, Saved: ₹${g.savedAmount ?? 0})`).join(', ') || 'No goals configured yet'}
 - Emergency Fund Status: Current saved ₹${fund?.currentAmount || 0} against target of ₹${(fund?.monthlyExpenses || 0) * (fund?.multiplier || 6)}
 - Selected Language: ${isTa ? 'Tamil' : 'English'}
 
